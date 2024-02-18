@@ -1,6 +1,9 @@
 # Setup Broker MQTT
 CONNECT test.mosquitto.org 1883
 
+# Setup a 10s KeepAlive
+CFG_KEEPALIVE 10
+
 # Publish message each 10 seconds
 CFG_PUB_EACH 10 0 my_topic_1 "Hello World"
 

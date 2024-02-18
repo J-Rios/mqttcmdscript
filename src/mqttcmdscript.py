@@ -143,6 +143,7 @@ class Configuration():
 ###############################################################################
 
 app_exit = False
+mqtt_connection_lost = False
 time_mqtt_connected: int | None = None
 t_wait_start: int | None = None
 config = Configuration()
@@ -188,11 +189,36 @@ def cb_mqtt_on_connect(client, userdata, flags, reason_code, properties):
     Callback that is triggered when the MQTT Connection is done.
     It make the subscription to all of the configured topics.
     '''
+    global mqtt_connection_lost
     global time_mqtt_connected
+    timestamp = get_timestamp()
+    to_write = f"{timestamp} -- MQTT Connected --"
+    if mqtt_connection_lost:
+        to_write = f"{timestamp} -- MQTT Connected (Communication Restored) --"
+    for sub in config.subscriptions:
+        file_write_text_line(sub.logfile, to_write)
+    mqtt_connection_lost = False
     time_mqtt_connected = time()
     logger.info("MQTT connected to Broker")
     for sub in config.subscriptions:
         client.subscribe(sub.topic, sub.qos)
+
+
+def cb_mqtt_on_disconnect(client, userdata, flags, reason_code, properties):
+    '''
+    Callback that is triggered when the MQTT is Disconnected or MQTT
+    communication is lost.
+    It writes disconnection message to all subscribed log files.
+    '''
+    global mqtt_connection_lost
+    if not mqtt_connection_lost:
+        mqtt_connection_lost = True
+        logger.info("MQTT disconnected from Broker")
+        if reason_code != 0:
+            timestamp = get_timestamp()
+            to_write = f"{timestamp} -- MQTT Communication Lost --"
+            for sub in config.subscriptions:
+                file_write_text_line(sub.logfile, to_write)
 
 
 def cb_mqtt_on_msg_rx(client, userdata, msg):
@@ -202,7 +228,7 @@ def cb_mqtt_on_msg_rx(client, userdata, msg):
     the message payload to the corresponding log file.
     '''
     payload_str = msg.payload.decode("utf-8")
-    logger.debug("Received msg - [Topic: %s] [Payload: %s]",
+    logger.info("Received msg - [Topic: %s] [Payload: %s]",
                  msg.topic, payload_str)
     for sub in config.subscriptions:
         if sub.topic == msg.topic:
@@ -232,7 +258,7 @@ def manage_publish_each_time(mqtt_client):
         if pub_each.time_last_pub is None:
             pub_each.time_last_pub = time_mqtt_connected
         if time() - pub_each.time_last_pub >= pub_each.each:
-            logger.debug(
+            logger.info(
                 "Publish msg each %d - [Qos: %d] [Topic: %s] [Payload: %s]",
                 pub_each.each, pub_each.qos, pub_each.topic, pub_each.msg)
             mqtt_client.publish(pub_each.topic, pub_each.msg,
@@ -250,7 +276,7 @@ def run_step_cmd(mqtt_client, cmd_arg):
     global app_exit
     global t_wait_start
     if cmd_arg.cmd == "DISCONNECT":
-        logger.debug("Disconnect")
+        logger.info("Disconnect")
         mqtt_client.disconnect()
         app_exit = True
         return True
@@ -258,7 +284,7 @@ def run_step_cmd(mqtt_client, cmd_arg):
         qos = cmd_arg.args[0]
         topic = cmd_arg.args[1]
         msg = cmd_arg.args[2]
-        logger.debug("Publish msg - [Qos: %d] [Topic: %s] [Payload: %s]",
+        logger.info("Publish msg - [Qos: %d] [Topic: %s] [Payload: %s]",
                      qos, topic, msg)
         mqtt_client.publish(topic, msg, qos)
         return True
@@ -271,9 +297,9 @@ def run_step_cmd(mqtt_client, cmd_arg):
             wait_t = cmd_arg.args[0] * 3600
         if t_wait_start is None:
             t_wait_start = time()
-            logger.debug("Delay wait %d sec", wait_t)
+            logger.info("Delay wait %d sec", wait_t)
         if time() - t_wait_start >= wait_t:
-            logger.debug("Delay wait done")
+            logger.info("Delay wait done")
             t_wait_start = None
             return True
     return False
@@ -292,8 +318,8 @@ def cmdscript_interpreter():
         clean_session=config.clean_session)
     mqtt_client.enable_logger(logger)
     mqtt_client.on_connect = cb_mqtt_on_connect
+    mqtt_client.on_disconnect = cb_mqtt_on_disconnect
     mqtt_client.on_message = cb_mqtt_on_msg_rx
-    logger.debug(config)
     mqtt_client.connect(config.mqtt_host, config.mqtt_port, config.keepalive_s)
     th_mqtt_process_id = Thread(target=th_mqtt_process, args=(mqtt_client,))
     th_mqtt_process_id.start()
@@ -544,6 +570,7 @@ def main(argc, argv):
         return RC.FAIL
     # Parse cmdscript instructions
     cmdscript_parse(cmdscript)
+    logger.debug(config)
     if config.invalid:
         logger.info(TEXT.INVALID_CMDSCRIPT)
         return RC.FAIL

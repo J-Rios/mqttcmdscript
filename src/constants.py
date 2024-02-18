@@ -39,7 +39,7 @@ class RC():
 class CONST():
 
     # Current Log level to use
-    LOG_LEVEL = logging.DEBUG
+    LOG_LEVEL = logging.INFO
 
     # Log File
     LOG_FILE = "mqttcmdscript.log"
