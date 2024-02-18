@@ -22,7 +22,7 @@ The cmdscript uses special keywords to specify each operation, here is a list of
 
 ```text
 # Related to General Connection Configuration
-CFG_CLIENT_ID X - Setup Client ID "X" for the MQTT Connection (if not set, "mqttcmdscript_HOSTNAME" is used as default).
+CFG_CLIENT_ID X - Setup Client ID "X" for the MQTT Connection (if not set, "mqttcmdscript_UUID" is used as default).
 CFG_CLEAN_SESSION YES/NO - Setup Clean Session as "YES" or "NO" for the MQTT connection (if not set, "YES" is used as default).
 CFG_KEEPALIVE N - Setup Client connection keepalive message sent each "N" seconds (if not set, "60" is used as default).
 
@@ -32,11 +32,11 @@ CFG_USE_TLS YES/NO - Setup to use TLS as "YES" or "NO" for the MQTT connection.
 CFG_TLS_CERT X Y - Setup path to the client certificate and key files to use when TLS connection is set.
 
 # Related to Periodic interaction
-CFG_PUB_EACH T X "Y" - Publish a MQTT message each "T" seconds to topic "X" and message content "Y".
+CFG_PUB_EACH T N X "Y" - Publish a MQTT message each "T" seconds with QoS "N", to topic "X" and message content "Y".
 
 # Related to Connection/disconnection
 CONNECT X Y - Connect to MQTT Broker/Server "X" and port "Y" baudrate speed.
-DISCONNECT X - Disconnect from the MQTT Broker/Server "X".
+DISCONNECT - Disconnect from the MQTT Broker/Server.
 
 # Related to Time
 DELAY X - Wait for X seconds.
@@ -44,8 +44,8 @@ DELAY_MS X - Wait for X milli-seconds.
 DELAY_H X - Wait for X hours.
 
 # Related to Message send/reception
-PUB X "Y" - Publish a single MQTT message to topic "X" and message content "Y".
-SUB X Y - Subscribe to topic "X" and store received messages to log file "Y".
+PUB N X "Y" - Publish a single MQTT message with QoS "N", to topic "X" and message content "Y".
+SUB N X Y - Subscribe to topic "X" with QoS "N", and store received messages to log file "Y".
 ```
 
 ### CMDScripts Examples
@@ -57,12 +57,12 @@ A simple example of a cmdscript that connects to a Broker and log some topics to
 CONNECT test.mosquitto.org 1883
 
 # Subscribe to multiple topics and store received messages to same log file
-SUB my_topic_1 received_msgs.log
-SUB my_topic_2 received_msgs.log
-SUB my_topic_3 received_msgs.log
+SUB 0 my_topic_1 received_msgs.log
+SUB 0 my_topic_2 received_msgs.log
+SUB 0 my_topic_3 received_msgs.log
 
 # Subscribe to another topic and store received messages to other log file
-SUB my_topic_4 other_file.log
+SUB 0 my_topic_4 other_file.log
 
 # This script doesn't end until user kill the process (i.e. Ctrl+C)
 ```
@@ -74,16 +74,16 @@ A simple example of a cmdscript that connects to a Broker and publish some messa
 CONNECT test.mosquitto.org 1883
 
 # Publish messages to 3 different topics
-PUB my_topic_1 "topic 1 message 1"
-PUB my_topic_2 "topic 2 message 1"
-PUB my_topic_2 "topic 3 message 1"
+PUB 0 my_topic_1 "topic 1 message 1"
+PUB 0 my_topic_2 "topic 2 message 1"
+PUB 0 my_topic_2 "topic 3 message 1"
 DELAY 5
-PUB my_topic_1 "topic 1 message 2"
-PUB my_topic_2 "topic 2 message 2"
-PUB my_topic_3 "topic 3 message 2"
+PUB 0 my_topic_1 "topic 1 message 2"
+PUB 0 my_topic_2 "topic 2 message 2"
+PUB 0 my_topic_3 "topic 3 message 2"
 
 # Disconnect from the Broker
-DISCONNECT test.mosquitto.org
+DISCONNECT
 ```
 
 A simple example of a cmdscript that connects to a Broker, subscribe to a couple of topics and publish some messages, will be the following:
@@ -93,17 +93,17 @@ A simple example of a cmdscript that connects to a Broker, subscribe to a couple
 CONNECT test.mosquitto.org 1883
 
 # Setup Subscriptions
-SUB request_topic received_msgs.log
-SUB response_topic received_msgs.log
+SUB 0 request_topic received_msgs.log
+SUB 0 response_topic received_msgs.log
 
 # Publish messages waiting 5 seconds between them
-PUB request_topic "hello"
+PUB 0 request_topic "hello"
 DELAY 5
-PUB request_topic "my"
+PUB 0 request_topic "my"
 DELAY 5
-PUB request_topic "world"
+PUB 0 request_topic "world"
 DELAY 5
 
 # Disconnect from the Broker
-DISCONNECT test.mosquitto.org
+DISCONNECT
 ```
