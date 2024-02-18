@@ -171,9 +171,8 @@ def get_timestamp():
     timestamp = ""
     try:
         tobj = datetime.utcnow()
-        timestamp = "[{}-{}-{} {}:{}:{}.{}]".format(
-                tobj.year, tobj.month, tobj.day, tobj.hour, tobj.minute,
-                tobj.second, "{}".format(tobj.microsecond)[:3])
+        timestamp = "[{}.{}]".format(
+            tobj.strftime("[%Y-%m-%d_%H:%M:%S"), tobj.strftime("%f")[:3])
     except Exception:
         logger.error(format_exc())
         logger.error("Fail to get current time and create timestamp\n")
